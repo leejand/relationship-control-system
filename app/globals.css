@@ -1,0 +1,90 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;1,300&family=DM+Sans:wght@300;400&display=swap');
+
+:root {
+  --cream: #fdfaf7;
+  --terracotta: #c4785a;
+  --terracotta-dim: #a86040;
+  --lila: #7878c4;
+  --surface: #ffffff;
+  --surface-2: #f0eae4;
+  --border: #e0d3c8;
+  --border-light: #e8ddd5;
+  --muted: #a89080;
+  --muted-2: #c4a090;
+  --text: #2a1f1a;
+  --text-2: #6b5040;
+  --green: #7ab870;
+  --amber: #c4a050;
+  --red: #c46060;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  min-height: 100dvh;
+  background: #f5ede6;
+  font-family: 'DM Sans', sans-serif;
+  font-weight: 300;
+  color: var(--text);
+}
+
+.font-serif { font-family: 'Cormorant Garamond', serif; }
+
+/* Phone shell */
+.phone-shell {
+  width: 100%;
+  max-width: 420px;
+  margin: 0 auto;
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  background: var(--cream);
+  position: relative;
+  overflow-x: hidden;
+}
+
+/* Sliders */
+input[type='range'] {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 4px;
+  border-radius: 9999px;
+  background: var(--surface-2);
+  outline: none;
+  width: 100%;
+}
+input[type='range']::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--terracotta);
+  cursor: pointer;
+  border: 2px solid white;
+  box-shadow: 0 1px 4px rgba(196,120,90,0.3);
+  transition: box-shadow 0.2s;
+}
+input[type='range']::-webkit-slider-thumb:hover {
+  box-shadow: 0 1px 10px rgba(196,120,90,0.5);
+}
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 3px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 9999px; }
+
+/* Animations */
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.fade-up { animation: fadeUp 0.4s ease forwards; }
+
+@keyframes ringDraw {
+  from { stroke-dasharray: 0 327; }
+}
