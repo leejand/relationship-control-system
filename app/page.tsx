@@ -1,91 +1,126 @@
 'use client'
+import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { toast } from 'sonner'
+import { Lock, Sparkles, Users } from 'lucide-react'
+import { useApp } from '@/components/AppProvider'
+import { Brand, Button, Segmented, Spinner } from '@/components/ui'
+import { signIn, signUp } from '@/lib/api'
+import { humanError } from '@/lib/supabase'
 
-const USERS = [
-  { id: 'Alejandro', initial: 'A', avatarBg: '#f0e6e0', avatarColor: '#c4785a' },
-  { id: 'Lina',      initial: 'L', avatarBg: '#e6e8f4', avatarColor: '#7878c4' },
-]
+type Mode = 'entrar' | 'crear'
 
-export default function LoginPage() {
+export default function AuthPage() {
+  const { status } = useApp()
   const router = useRouter()
+  const [mode, setMode] = useState<Mode>('entrar')
+  const [name, setName] = useState('')
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
+  const [busy, setBusy] = useState(false)
+  const [sentTo, setSentTo] = useState<string | null>(null)
 
-  const enter = (userId: string) => {
-    localStorage.setItem('aleli_user', userId)
-    router.push('/dashboard')
+  useEffect(() => {
+    if (status === 'ready') router.replace('/hoy')
+    if (status === 'no-couple') router.replace('/pareja')
+  }, [status, router])
+
+  async function submit(e: React.FormEvent) {
+    e.preventDefault()
+    setBusy(true)
+    try {
+      if (mode === 'entrar') {
+        await signIn(email.trim(), password)
+      } else {
+        const { needsConfirmation } = await signUp(email.trim(), password, name.trim())
+        if (needsConfirmation) setSentTo(email.trim())
+      }
+    } catch (err) {
+      toast.error(humanError(err))
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  if (status === 'loading' || status === 'ready' || status === 'no-couple') {
+    return <main className="shell"><Spinner /></main>
   }
 
   return (
-    <div className="phone-shell">
-      <div className="flex flex-col items-center justify-center flex-1 px-8 py-16 gap-12">
-
-        {/* Logo */}
-        <div className="flex flex-col items-center gap-1 fade-up">
-          <span
-            className="font-serif"
-            style={{ fontSize: 60, fontStyle: 'italic', fontWeight: 300, color: '#c4785a', lineHeight: 1 }}
-          >
-            Alelí
-          </span>
-          <span style={{ fontSize: 12, color: '#a89080', letterSpacing: '5px', textTransform: 'uppercase' }}>
-            Relationship
-          </span>
-          <span style={{ fontSize: 10, color: '#c4a090', letterSpacing: '3px', textTransform: 'uppercase', marginTop: 2 }}>
-            dashboard emocional
-          </span>
-        </div>
-
-        {/* User cards */}
-        <div className="w-full flex flex-col gap-3 fade-up" style={{ animationDelay: '0.1s', opacity: 0 }}>
-          <p style={{ fontSize: 11, color: '#a89080', textAlign: 'center', letterSpacing: '2px', textTransform: 'uppercase', marginBottom: 4 }}>
-            ¿Quién eres?
+    <main className="shell px-6">
+      <div className="enter flex flex-1 flex-col justify-center gap-10 py-14">
+        <div className="flex flex-col items-center gap-3 text-center">
+          <Brand size="lg" />
+          <p className="max-w-[28ch] text-[15px] leading-relaxed text-ink-2">
+            Un minuto al día para saber cómo están, juntos.
           </p>
-          {USERS.map(u => (
-            <button
-              key={u.id}
-              onClick={() => enter(u.id)}
-              className="w-full flex items-center gap-4 text-left transition-all active:scale-98"
-              style={{
-                padding: '18px 20px',
-                borderRadius: 20,
-                border: '0.5px solid #e0d3c8',
-                background: '#fff',
-                cursor: 'pointer',
-              }}
-              onMouseEnter={e => {
-                (e.currentTarget as HTMLElement).style.borderColor = '#c4785a'
-                ;(e.currentTarget as HTMLElement).style.background = '#fdf5f0'
-              }}
-              onMouseLeave={e => {
-                (e.currentTarget as HTMLElement).style.borderColor = '#e0d3c8'
-                ;(e.currentTarget as HTMLElement).style.background = '#fff'
-              }}
-            >
-              <div
-                style={{
-                  width: 44, height: 44, borderRadius: '50%',
-                  background: u.avatarBg, color: u.avatarColor,
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  fontFamily: "'Cormorant Garamond', serif",
-                  fontSize: 20, fontWeight: 400, flexShrink: 0,
-                }}
-              >
-                {u.initial}
-              </div>
-              <div className="flex-1">
-                <div style={{ fontSize: 15, color: '#2a1f1a', fontWeight: 400 }}>{u.id}</div>
-                <div style={{ fontSize: 11, color: '#a89080', marginTop: 2 }}>registrar mis métricas</div>
-              </div>
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#c4a090" strokeWidth="1.5">
-                <path d="M9 18l6-6-6-6"/>
-              </svg>
-            </button>
-          ))}
         </div>
 
-        <p style={{ fontSize: 10, color: '#d0bfb5', letterSpacing: '1px', textAlign: 'center' }}>
-          los datos se sincronizan para los dos
-        </p>
+        {sentTo ? (
+          <div className="card flex flex-col items-center gap-2 p-6 text-center">
+            <Sparkles className="size-6 text-accent" aria-hidden />
+            <p className="font-serif text-2xl">Revisa tu correo</p>
+            <p className="text-sm text-muted">
+              Te enviamos un enlace a <strong className="text-ink">{sentTo}</strong> para confirmar tu cuenta.
+            </p>
+            <Button variant="ghost" size="sm" className="mt-2" onClick={() => { setSentTo(null); setMode('entrar') }}>
+              Ya lo confirmé
+            </Button>
+          </div>
+        ) : (
+          <form onSubmit={submit} className="flex flex-col gap-3">
+            <Segmented
+              label="Acceso"
+              value={mode}
+              onChange={setMode}
+              options={[
+                { value: 'entrar', label: 'Entrar' },
+                { value: 'crear', label: 'Crear cuenta' },
+              ]}
+            />
+            {mode === 'crear' && (
+              <input
+                className="field pop-in"
+                placeholder="¿Cómo te llamas?"
+                autoComplete="given-name"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                required
+                maxLength={40}
+              />
+            )}
+            <input
+              className="field"
+              type="email"
+              placeholder="Correo"
+              autoComplete="email"
+              inputMode="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              required
+            />
+            <input
+              className="field"
+              type="password"
+              placeholder="Contraseña"
+              autoComplete={mode === 'entrar' ? 'current-password' : 'new-password'}
+              minLength={6}
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+            />
+            <Button type="submit" loading={busy} className="mt-1">
+              {mode === 'entrar' ? 'Entrar' : 'Crear cuenta'}
+            </Button>
+          </form>
+        )}
+
+        <ul className="grid grid-cols-3 gap-2 text-center text-[11.5px] text-muted">
+          <li className="flex flex-col items-center gap-1.5"><Lock className="size-4" aria-hidden />Privado para los dos</li>
+          <li className="flex flex-col items-center gap-1.5"><Users className="size-4" aria-hidden />Vinculados por código</li>
+          <li className="flex flex-col items-center gap-1.5"><Sparkles className="size-4" aria-hidden />Tendencias e ideas</li>
+        </ul>
       </div>
-    </div>
+    </main>
   )
 }

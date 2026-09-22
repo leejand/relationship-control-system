@@ -1,57 +1,60 @@
 'use client'
-import { getInsight } from '@/lib/supabase'
+import { scoreProgress, zoneOf, ZONES } from '@/lib/metrics'
 
-type Props = { score: number; avg?: number | null }
+const R = 54
+const C = 2 * Math.PI * R
 
-const CIRC = 2 * Math.PI * 52
-const MAX  = 18
-
-export default function ScoreRing({ score, avg }: Props) {
-  const ins  = getInsight(avg ?? score)
-  const pct  = Math.max(0, Math.min(score / MAX, 1))
-  const dash = pct * CIRC
+/** Anillo con el score; el color sigue la zona (estable / fricción / tensión). */
+export default function ScoreRing({
+  score,
+  label = 'score',
+  size = 148,
+}: {
+  score: number | null
+  label?: string
+  size?: number
+}) {
+  const zone = score == null ? null : zoneOf(score)
+  const color = zone ? `var(--z-${zone})` : 'var(--line-strong)'
+  const offset = C * (1 - (score == null ? 0 : scoreProgress(score)))
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10 }}>
-      {/* Ring */}
-      <div style={{ position: 'relative', width: 130, height: 130 }}>
-        <svg width="130" height="130" viewBox="0 0 130 130" style={{ transform: 'rotate(-90deg)' }}>
-          <circle cx="65" cy="65" r="52" fill="none" stroke="#f0e6e0" strokeWidth="8"/>
-          <circle
-            cx="65" cy="65" r="52" fill="none"
-            stroke={ins.color} strokeWidth="8" strokeLinecap="round"
-            strokeDasharray={`${dash.toFixed(1)} ${(CIRC - dash).toFixed(1)}`}
-            style={{ transition: 'stroke-dasharray 0.7s ease' }}
-          />
-        </svg>
-        <div style={{
-          position: 'absolute', inset: 0,
-          display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-        }}>
-          <span style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 36, fontWeight: 300, color: '#2a1f1a', lineHeight: 1 }}>
-            {score.toFixed(1)}
-          </span>
-          <span style={{ fontSize: 10, color: '#a89080', letterSpacing: '1.5px', textTransform: 'uppercase', marginTop: 3 }}>
-            score
-          </span>
-        </div>
+    <div className="relative" style={{ width: size, height: size }}>
+      <svg viewBox="0 0 128 128" width={size} height={size} className="-rotate-90" aria-hidden>
+        <circle cx="64" cy="64" r={R} fill="none" stroke="var(--surface-2)" strokeWidth="9" />
+        <circle
+          className="ring-progress"
+          cx="64"
+          cy="64"
+          r={R}
+          fill="none"
+          stroke={color}
+          strokeWidth="9"
+          strokeLinecap="round"
+          strokeDasharray={C}
+          strokeDashoffset={offset}
+        />
+      </svg>
+      <div className="absolute inset-0 flex flex-col items-center justify-center">
+        <span className="num font-serif text-[40px] font-light leading-none text-ink">
+          {score == null ? '—' : score.toFixed(1)}
+        </span>
+        <span className="eyebrow mt-1 !text-[10px]">{label}</span>
       </div>
-
-      {/* Insight badge */}
-      <div style={{
-        display: 'flex', alignItems: 'center', gap: 7,
-        padding: '6px 16px', borderRadius: 99,
-        background: ins.bg, border: `0.5px solid ${ins.border}`,
-      }}>
-        <div style={{ width: 7, height: 7, borderRadius: '50%', background: ins.color }} />
-        <span style={{ fontSize: 12, color: ins.color }}>{ins.text}</span>
-      </div>
-
-      {avg != null && (
-        <p style={{ fontSize: 11, color: '#a89080' }}>
-          promedio pareja: <span style={{ color: '#2a1f1a', fontWeight: 400 }}>{avg.toFixed(1)}</span>
-        </p>
-      )}
+      <span className="sr-only">{score == null ? 'Sin registro' : `${score.toFixed(1)}, ${ZONES[zone!].label}`}</span>
     </div>
+  )
+}
+
+export function ZoneBadge({ score }: { score: number }) {
+  const zone = zoneOf(score)
+  return (
+    <span
+      className="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-[12px]"
+      style={{ background: `var(--z-${zone}-soft)`, color: `var(--z-${zone})` }}
+    >
+      <span className="size-1.5 rounded-full" style={{ background: `var(--z-${zone})` }} />
+      {ZONES[zone].label}
+    </span>
   )
 }

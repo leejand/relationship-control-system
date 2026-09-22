@@ -1,47 +1,36 @@
-import { createClient } from '@supabase/supabase-js'
+import { createClient, type SupabaseClient } from '@supabase/supabase-js'
 
-const supabaseUrl  = process.env.NEXT_PUBLIC_SUPABASE_URL!
-const supabaseKey  = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+let client: SupabaseClient | null = null
 
-export const supabase = createClient(supabaseUrl, supabaseKey)
-
-export type Entry = {
-  id?: number
-  user_id: string
-  date: string
-  ce: number
-  com: number
-  con: number
-  re: number
-  sg: number
-  score: number
+/**
+ * Cliente único del navegador. La seguridad no depende de este código sino
+ * de las políticas RLS de supabase/migrations: la anon key es pública.
+ */
+export function supabase(): SupabaseClient {
+  if (client) return client
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL
+  const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+  if (!url || !key) {
+    throw new Error('Faltan NEXT_PUBLIC_SUPABASE_URL y NEXT_PUBLIC_SUPABASE_ANON_KEY en .env.local')
+  }
+  client = createClient(url, key, {
+    auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true },
+  })
+  return client
 }
 
-export function calcScore(ce: number, com: number, con: number, re: number, sg: number): number {
-  return parseFloat(((ce + com + re + sg) - con * 1.5).toFixed(1))
-}
-
-export function getInsight(s: number): { text: string; color: string; bg: string; border: string } {
-  if (s >= 12) return { text: 'Relación estable',    color: '#7ab870', bg: '#f0f7ee', border: '#b8d8b0' }
-  if (s >= 8)  return { text: 'Fricción moderada',   color: '#c4a050', bg: '#fdf6e8', border: '#e0cc90' }
-  return              { text: 'Alta tensión',         color: '#c46060', bg: '#fdf0f0', border: '#e0b0b0' }
-}
-
-export async function insertEntry(entry: Omit<Entry, 'id'>): Promise<Entry | null> {
-  const { data, error } = await supabase
-    .from('relationship_data')
-    .insert([entry])
-    .select()
-    .single()
-  if (error) { console.error(error); return null }
-  return data
-}
-
-export async function loadAllEntries(): Promise<Entry[]> {
-  const { data, error } = await supabase
-    .from('relationship_data')
-    .select('*')
-    .order('date', { ascending: true })
-  if (error) { console.error(error); return [] }
-  return data || []
+/** Traduce los errores más comunes de Supabase a un mensaje para la persona. */
+export function humanError(error: unknown): string {
+  const msg = error instanceof Error ? error.message : String((error as { message?: string })?.message ?? error)
+  const map: [RegExp, string][] = [
+    [/invalid login credentials/i, 'Correo o contraseña incorrectos.'],
+    [/email not confirmed/i, 'Confirma tu correo antes de entrar (revisa tu bandeja).'],
+    [/user already registered/i, 'Ya existe una cuenta con ese correo.'],
+    [/password should be at least/i, 'La contraseña debe tener al menos 6 caracteres.'],
+    [/código no válido/i, 'Ese código no existe. Revísalo con tu pareja.'],
+    [/ya está completa/i, 'Esa pareja ya tiene dos personas.'],
+    [/ya perteneces/i, 'Ya perteneces a una pareja.'],
+    [/failed to fetch|network/i, 'Sin conexión. Inténtalo de nuevo.'],
+  ]
+  return map.find(([re]) => re.test(msg))?.[1] ?? 'Algo salió mal. Inténtalo de nuevo.'
 }
